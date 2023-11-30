@@ -1,0 +1,73 @@
+#!/bin/bash
+set -euo pipefail
+
+source config.sh
+
+readonly ENTRYPOINT_ADDRESS="0x5ff137d4b0fdcd49dca30c7cf57e578a026d2789"
+
+check_dependency() {
+    local DEPENDENCY="$1"
+    if ! command -v "$DEPENDENCY" &>/dev/null; then
+        printf >&2 "%s could not be found. Please install it and try again.\n" "$DEPENDENCY"
+        exit 1
+    fi
+}
+
+get_node_url_for_chain_id() {
+    local LOCAL_CHAIN_ID="$1"
+    local -a CHAIN_IDS=(1 5)
+    local -a NODE_URLS=(
+    "https://mainnet.infura.io/v3/${INFURA_API_KEY}"
+    "https://goerli.infura.io/v3/${INFURA_API_KEY}"
+)
+
+    for ((i=0; i<${#CHAIN_IDS[@]}; i++)); do
+        if [[ "${CHAIN_IDS[$i]}" == "$LOCAL_CHAIN_ID" ]]; then
+            printf "%s\n" "${NODE_URLS[$i]}"
+            return
+        fi
+    done
+
+    printf >&2 "Unsupported chainId: %s\n" "$LOCAL_CHAIN_ID"
+    exit 1
+}
+
+execute_cast_call_with_sender_data_url() {
+    local SENDER="$1" CALL_DATA="$2" NODE_URL="$3"
+    cast call "$SENDER" "$CALL_DATA" -f "$ENTRYPOINT_ADDRESS" -r "$NODE_URL" --verbose --trace
+}
+
+extract_field_value_from_json() {
+    echo "$USER_OP_JSON" | jq -r --arg FIELD "$1" '.[$FIELD]'
+}
+
+check_dependency jq
+check_dependency cast
+
+if [[ $# -lt 2 ]]; then
+    printf >&2 "Usage: %s '<userOpJson>' <chainId>\n" "$0"
+    exit 1
+fi
+
+readonly USER_OP_JSON="$1"
+readonly CHAIN_ID="$2"
+
+INIT_CODE=$(extract_field_value_from_json 'initCode')
+SENDER=$(extract_field_value_from_json 'sender')
+NONCE=$(extract_field_value_from_json 'nonce')
+CALL_DATA=$(extract_field_value_from_json 'callData')
+SIGNATURE=$(extract_field_value_from_json 'signature')
+MAX_FEE_PER_GAS=$(extract_field_value_from_json 'maxFeePerGas')
+MAX_PRIORITY_FEE_PER_GAS=$(extract_field_value_from_json 'maxPriorityFeePerGas')
+PAYMASTER_AND_DATA=$(extract_field_value_from_json 'paymasterAndData')
+CALL_GAS_LIMIT=$(extract_field_value_from_json 'callGasLimit')
+VERIFICATION_GAS_LIMIT=$(extract_field_value_from_json 'verificationGasLimit')
+PRE_VERIFICATION_GAS=$(extract_field_value_from_json 'preVerificationGas')
+
+NODE_URL=$(get_node_url_for_chain_id "$CHAIN_ID")
+
+execute_cast_call_with_sender_data_url "$SENDER" "$CALL_DATA" "$NODE_URL"
+
+CAST_CALL_DATA=$(cast calldata 'handleOps((address,uint256,bytes,bytes,uint256,uint256,uint256,uint256,uint256,bytes,bytes)[],address)' "[($SENDER,$NONCE,$INIT_CODE,$CALL_DATA,$CALL_GAS_LIMIT,$VERIFICATION_GAS_LIMIT,$PRE_VERIFICATION_GAS,$MAX_FEE_PER_GAS,$MAX_PRIORITY_FEE_PER_GAS,$PAYMASTER_AND_DATA,$SIGNATURE)]" "$ENTRYPOINT_ADDRESS")
+
+execute_cast_call_with_sender_data_url "$ENTRYPOINT_ADDRESS" "$CAST_CALL_DATA" "$NODE_URL"
