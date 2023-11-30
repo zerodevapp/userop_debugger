@@ -123,3 +123,6 @@ The script performs the following steps:
   
 
 This script is intended for debugging purposes. Always ensure you are interacting with the correct EVM chain and smart contracts.
+
+### Screenshot
+![Screenshot](./Screenshot.png)
