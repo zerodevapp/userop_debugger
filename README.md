@@ -114,7 +114,7 @@ The script performs the following steps:
 
 5. Constructs `cast` call data for the `handleOps` function.
 
-6. Executes a `cast` call with the constructed call data to the EntryPoint contract.
+6. Executes a `cast` call with the UserOp to the EntryPoint contract.
 
   
 
