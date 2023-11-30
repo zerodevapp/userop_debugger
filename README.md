@@ -47,7 +47,7 @@ Replace `"your_infura_api_key"` with your actual Infura API key.
 
   
 
-After creating `config.sh`, you can run the script as described in the Usage section. Make sure to give execute permissions to `userop_debug.sh` by running `chmod +x config.sh userop_debug.sh`.
+After creating `config.sh`, you can run the script as described in the Usage section. Make sure to give execute permissions to `userop_debug.sh` by running `chmod +x userop_debug.sh`.
 
   
 
