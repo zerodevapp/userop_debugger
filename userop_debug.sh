@@ -3,7 +3,7 @@ set -euo pipefail
 
 source config.sh
 
-readonly ENTRYPOINT_ADDRESS="0x5ff137d4b0fdcd49dca30c7cf57e578a026d2789"
+readonly ENTRYPOINT_ADDRESS="0x0000000071727De22E5E9d8BAf0edAc6f37da032"
 
 check_dependency() {
     local DEPENDENCY="$1"
@@ -15,10 +15,10 @@ check_dependency() {
 
 get_node_url_for_chain_id() {
     local LOCAL_CHAIN_ID="$1"
-    local -a CHAIN_IDS=(1 5)
+    local -a CHAIN_IDS=(1 11155111)
     local -a NODE_URLS=(
     "https://mainnet.infura.io/v3/${INFURA_API_KEY}"
-    "https://goerli.infura.io/v3/${INFURA_API_KEY}"
+    "https://sepolia.infura.io/v3/${INFURA_API_KEY}"
 )
 
     for ((i=0; i<${#CHAIN_IDS[@]}; i++)); do
@@ -34,7 +34,7 @@ get_node_url_for_chain_id() {
 
 execute_cast_call_with_sender_data_url() {
     local SENDER="$1" CALL_DATA="$2" NODE_URL="$3"
-    cast call "$SENDER" "$CALL_DATA" -f "$ENTRYPOINT_ADDRESS" -r "$NODE_URL" --verbose --trace
+    cast call "$SENDER" "$CALL_DATA" -f "$ENTRYPOINT_ADDRESS" -r "$NODE_URL" --trace
 }
 
 extract_field_value_from_json() {
@@ -57,17 +57,15 @@ SENDER=$(extract_field_value_from_json 'sender')
 NONCE=$(extract_field_value_from_json 'nonce')
 CALL_DATA=$(extract_field_value_from_json 'callData')
 SIGNATURE=$(extract_field_value_from_json 'signature')
-MAX_FEE_PER_GAS=$(extract_field_value_from_json 'maxFeePerGas')
-MAX_PRIORITY_FEE_PER_GAS=$(extract_field_value_from_json 'maxPriorityFeePerGas')
+GAS_FEES=$(extract_field_value_from_json 'gasFees')
 PAYMASTER_AND_DATA=$(extract_field_value_from_json 'paymasterAndData')
-CALL_GAS_LIMIT=$(extract_field_value_from_json 'callGasLimit')
-VERIFICATION_GAS_LIMIT=$(extract_field_value_from_json 'verificationGasLimit')
+GAS_LIMIT=$(extract_field_value_from_json 'accountGasLimits')
 PRE_VERIFICATION_GAS=$(extract_field_value_from_json 'preVerificationGas')
 
 NODE_URL=$(get_node_url_for_chain_id "$CHAIN_ID")
 
-execute_cast_call_with_sender_data_url "$SENDER" "$CALL_DATA" "$NODE_URL"
+# execute_cast_call_with_sender_data_url "$SENDER" "$CALL_DATA" "$NODE_URL"
 
-CAST_CALL_DATA=$(cast calldata 'handleOps((address,uint256,bytes,bytes,uint256,uint256,uint256,uint256,uint256,bytes,bytes)[],address)' "[($SENDER,$NONCE,$INIT_CODE,$CALL_DATA,$CALL_GAS_LIMIT,$VERIFICATION_GAS_LIMIT,$PRE_VERIFICATION_GAS,$MAX_FEE_PER_GAS,$MAX_PRIORITY_FEE_PER_GAS,$PAYMASTER_AND_DATA,$SIGNATURE)]" "$ENTRYPOINT_ADDRESS")
+CAST_CALL_DATA=$(cast calldata 'handleOps((address,uint256,bytes,bytes,bytes32,uint256,bytes32,bytes,bytes)[],address)' "[($SENDER,$NONCE,$INIT_CODE,$CALL_DATA,$GAS_LIMIT,$PRE_VERIFICATION_GAS,$GAS_FEES,$PAYMASTER_AND_DATA,$SIGNATURE)]" "$ENTRYPOINT_ADDRESS")
 
 execute_cast_call_with_sender_data_url "$ENTRYPOINT_ADDRESS" "$CAST_CALL_DATA" "$NODE_URL"
